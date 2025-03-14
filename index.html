@@ -303,7 +303,7 @@
       min-height: 250px;
     }
 
-    /* Popup 'Dodaj obiekt' */
+    /* Popup 'Dodaj/Edytuj obiekt' */
     .add-popup-overlay {
       position: fixed;
       top: 0;
@@ -356,6 +356,46 @@
       justify-content: flex-end;
       gap: 10px;
       margin-top: 10px;
+    }
+
+    /* Popup usuwania obiektu */
+    .delete-popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000; 
+    }
+    .delete-popup-overlay.active {
+      display: flex;
+    }
+    .delete-popup-container {
+      background-color: white;
+      width: 300px;
+      max-width: 90%;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .delete-popup-header {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--dark-text);
+      margin-bottom: 10px;
+    }
+    .delete-popup-actions {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
     }
 
     /* Responsywność */
@@ -543,10 +583,10 @@
     </div>
   </div>
 
-  <!-- Popup Dodaj obiekt -->
+  <!-- Popup Dodaj/Edytuj obiekt -->
   <div class="add-popup-overlay" id="add-popup">
     <div class="add-popup-container">
-      <div class="add-popup-header">Dodaj obiekt</div>
+      <div class="add-popup-header" id="popup-add-title">Dodaj obiekt</div>
 
       <div class="add-popup-row">
         <label for="input-investor">Nazwa inwestycji <span style="color:red">*</span></label>
@@ -596,6 +636,17 @@
     </div>
   </div>
 
+  <!-- Popup usuwania obiektu -->
+  <div class="delete-popup-overlay" id="delete-popup">
+    <div class="delete-popup-container">
+      <div class="delete-popup-header">Czy na pewno chcesz usunąć ten obiekt?</div>
+      <div class="delete-popup-actions">
+        <button class="btn btn-primary" id="btn-delete-confirm">Tak</button>
+        <button class="btn btn-outline" id="btn-delete-cancel">Nie</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Zewnętrzne biblioteki JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -610,6 +661,11 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyeG92dmtwbHBqaWJndG96cHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NjMxNDYsImV4cCI6MjA1NzQzOTE0Nn0.EooKE2NLW292MzXXKeyy--7HhIhl4TJ4CXknzB6GXyk';
     const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
+    // Globalne zmienne do obsługi edycji/usuwania
+    let allObjects = [];
+    let editingObject = null;   // Przechowuje aktualnie edytowany obiekt
+    let deletingObject = null;  // Przechowuje aktualnie usuwany obiekt
+
     /***************************************
      *      INICJALIZACJA MAPY LEAFLET
      ***************************************/
@@ -621,9 +677,6 @@
 
     var markerClusterGroup = L.markerClusterGroup({ maxClusterRadius: 30 });
     map.addLayer(markerClusterGroup);
-
-    // Przechowujemy pobrane dane w pamięci, aby nie fetchować wielokrotnie
-    let allObjects = [];
 
     /***************************************
      *            FILTROWANIE
@@ -672,12 +725,18 @@
         }
         investorHTML = `<a href="${safeUrl}" target="_blank">${obj.investor}</a>`;
       }
-      return `<b>${investorHTML}</b><br>
-              ${obj.city || ""}<br>
-              Powierzchnia: ${obj.area || 0} m²<br>
-              Branża: ${obj.industry || ""}<br>
-              Rodzaj: ${obj.object_type || ""}<br>
-              Kontrakt: ${obj.contract_type || ""}`;
+      // Dodajemy przyciski "Edytuj" i "Usuń" w popupie
+      return `
+        <b>${investorHTML}</b><br>
+        ${obj.city || ""}<br>
+        Powierzchnia: ${obj.area || 0} m²<br>
+        Branża: ${obj.industry || ""}<br>
+        Rodzaj: ${obj.object_type || ""}<br>
+        Kontrakt: ${obj.contract_type || ""}
+        <div style="margin-top: 10px; display: flex; gap: 10px;">
+          <button class="btn btn-primary" onclick="editObject(${obj.id})">Edytuj</button>
+          <button class="btn btn-outline" onclick="confirmDelete(${obj.id})">Usuń</button>
+        </div>`;
     }
 
     function addOrUpdateMarker(obj) {
@@ -768,31 +827,59 @@
     fetchObjects();
 
     /***************************************
-     *     POPUP 'DODAJ OBIEKT'
+     *     POPUP 'DODAJ/EDYTUJ OBIEKT'
      ***************************************/
     const btnOpenAdd = document.getElementById('btn-open-add');
     const addPopup = document.getElementById('add-popup');
     const btnCancelAdd = document.getElementById('btn-cancel-add');
     const btnSaveAdd = document.getElementById('btn-save-add');
+    const popupAddTitle = document.getElementById('popup-add-title');
 
-    // Otwórz popup
+    // Otwórz popup w trybie DODAWANIA
     btnOpenAdd.addEventListener('click', () => {
-      // Zanim otworzymy, wypełnimy dropdowny (region, industry, object_type, contract_type) tymi samymi wartościami co w filtrach
+      editingObject = null;
+      // Wypełnij dropdowny
       fillSelect('input-region', getUniqueValues(allObjects, 'region'));
       fillSelect('input-industry', getUniqueValues(allObjects, 'industry'));
       fillSelect('input-object-type', getUniqueValues(allObjects, 'object_type'));
       fillSelect('input-contract-type', getUniqueValues(allObjects, 'contract_type'));
 
+      popupAddTitle.innerText = "Dodaj obiekt";
+      clearAddPopupFields();
       addPopup.classList.add('active');
     });
+
+    // Funkcja do wypełnienia popupu w trybie EDYTOWANIA
+    window.editObject = (id) => {
+      editingObject = allObjects.find(o => o.id === id);
+      if (!editingObject) return;
+
+      fillSelect('input-region', getUniqueValues(allObjects, 'region'));
+      fillSelect('input-industry', getUniqueValues(allObjects, 'industry'));
+      fillSelect('input-object-type', getUniqueValues(allObjects, 'object_type'));
+      fillSelect('input-contract-type', getUniqueValues(allObjects, 'contract_type'));
+
+      popupAddTitle.innerText = "Edytuj obiekt";
+      document.getElementById('input-investor').value = editingObject.investor || "";
+      document.getElementById('input-city').value = editingObject.city || "";
+      document.getElementById('input-region').value = editingObject.region || "";
+      document.getElementById('input-area').value = editingObject.area || "";
+      document.getElementById('input-industry').value = editingObject.industry || "";
+      document.getElementById('input-object-type').value = editingObject.object_type || "";
+      document.getElementById('input-contract-type').value = editingObject.contract_type || "";
+      document.getElementById('input-link').value = editingObject.link_url || "";
+
+      addPopup.classList.add('active');
+    };
 
     // Anuluj
     btnCancelAdd.addEventListener('click', () => {
       addPopup.classList.remove('active');
+      editingObject = null;
       clearAddPopupFields();
     });
 
-    // Zapisz
+    // Zapisz (dodawanie lub edycja)
     btnSaveAdd.addEventListener('click', async () => {
       try {
         const investor = document.getElementById('input-investor').value.trim();
@@ -817,23 +904,41 @@
           return;
         }
 
-        // Geokodowanie: city + region + Poland, by być bardziej precyzyjnym
-        const query = encodeURIComponent(`${city}, ${region}, Poland`);
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}`;
-        const resp = await fetch(url);
-        const geoData = await resp.json();
-        if (!geoData || geoData.length === 0) {
-          alert("Nie udało się ustalić współrzędnych dla podanej lokalizacji!");
-          return;
-        }
-        const lat = geoData[0].lat;
-        const lon = geoData[0].lon;
+        // Czy geokodować? Tylko jeśli zmieniono miasto lub region (w trybie edycji)
+        let doGeocode = true;
+        let lat, lon;
 
-        // Zapis do Supabase
-        const { data, error } = await supabaseClient
-          .from('objects')
-          .insert([
-            {
+        if (editingObject) {
+          // Tryb edycji
+          if (
+            city === editingObject.city &&
+            region === editingObject.region
+          ) {
+            doGeocode = false;
+            lat = editingObject.lat;
+            lon = editingObject.lon;
+          }
+        }
+
+        if (doGeocode) {
+          // city + region + Poland
+          const query = encodeURIComponent(`${city}, ${region}, Poland`);
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}`;
+          const resp = await fetch(url);
+          const geoData = await resp.json();
+          if (!geoData || geoData.length === 0) {
+            alert("Nie udało się ustalić współrzędnych dla podanej lokalizacji!");
+            return;
+          }
+          lat = parseFloat(geoData[0].lat);
+          lon = parseFloat(geoData[0].lon);
+        }
+
+        if (editingObject) {
+          // Aktualizacja istniejącego obiektu
+          const { error } = await supabaseClient
+            .from('objects')
+            .update({
               investor,
               city,
               region,
@@ -842,23 +947,52 @@
               object_type: object_type || null,
               contract_type: contract_type || null,
               link_url: link_url || null,
-              lat: parseFloat(lat),
-              lon: parseFloat(lon)
-            }
-          ]);
-        if (error) {
-          console.error(error);
-          alert("Błąd podczas zapisywania do bazy!");
-          return;
+              lat,
+              lon
+            })
+            .eq('id', editingObject.id);
+
+          if (error) {
+            console.error(error);
+            alert("Błąd podczas zapisywania zmian!");
+            return;
+          }
+
+        } else {
+          // Dodawanie nowego obiektu
+          const { error } = await supabaseClient
+            .from('objects')
+            .insert([
+              {
+                investor,
+                city,
+                region,
+                area: area ? parseFloat(area) : null,
+                industry: industry || null,
+                object_type: object_type || null,
+                contract_type: contract_type || null,
+                link_url: link_url || null,
+                lat,
+                lon
+              }
+            ]);
+          if (error) {
+            console.error(error);
+            alert("Błąd podczas zapisywania do bazy!");
+            return;
+          }
         }
+
         // Po udanym zapisie, odśwież listę obiektów
         await fetchObjects();
         // Zamknij popup
         addPopup.classList.remove('active');
+        editingObject = null;
         clearAddPopupFields();
+
       } catch (err) {
         console.error(err);
-        alert("Wystąpił błąd podczas dodawania obiektu!");
+        alert("Wystąpił błąd podczas dodawania/edytowania obiektu!");
       }
     });
 
@@ -872,6 +1006,45 @@
       document.getElementById('input-contract-type').value = "";
       document.getElementById('input-link').value = "";
     }
+
+    /***************************************
+     *     POPUP USUWANIA OBIEKTU
+     ***************************************/
+    const deletePopup = document.getElementById('delete-popup');
+    const btnDeleteConfirm = document.getElementById('btn-delete-confirm');
+    const btnDeleteCancel = document.getElementById('btn-delete-cancel');
+
+    window.confirmDelete = (id) => {
+      deletingObject = allObjects.find(o => o.id === id);
+      if (!deletingObject) return;
+      deletePopup.classList.add('active');
+    };
+
+    btnDeleteConfirm.addEventListener('click', async () => {
+      if (!deletingObject) return;
+      try {
+        const { error } = await supabaseClient
+          .from('objects')
+          .delete()
+          .eq('id', deletingObject.id);
+        if (error) {
+          console.error(error);
+          alert("Błąd podczas usuwania obiektu!");
+          return;
+        }
+        deletePopup.classList.remove('active');
+        deletingObject = null;
+        await fetchObjects();
+      } catch (err) {
+        console.error(err);
+        alert("Wystąpił błąd podczas usuwania!");
+      }
+    });
+
+    btnDeleteCancel.addEventListener('click', () => {
+      deletePopup.classList.remove('active');
+      deletingObject = null;
+    });
 
     /***************************************
      *     POPUP ANALIZY
@@ -937,7 +1110,7 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-    }); 
-  </script>  
+    });
+  </script>
 </body>
 </html>
