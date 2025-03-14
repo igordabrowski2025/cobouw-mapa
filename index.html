@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa obiektów</title>
+
+  <!-- Główne style -->
+  <style>
+    :root {
+      --primary-color: #ff5800;
+      --primary-dark: #e65000;
+      --secondary-color: #ff7e3e;
+      --light-bg: #f8fafc;
+      --dark-text: #1e293b;
+      --light-text: #f1f5f9;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--light-bg);
+      color: var(--dark-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 20px;
+      width: 100%;
+    }
+
+    header {
+      background-color: white;
+      box-shadow: var(--shadow);
+      padding: 15px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .logo img {
+      height: 40px; /* Zmniejszone o 20% w stosunku do pierwotnej wartości 50px */
+    }
+
+    .header-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--primary-color);
+    }
+
+    main {
+      padding: 20px 0;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Panel kontrolny (filtry, przyciski) */
+    .controls-panel {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .filters-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 15px;
+      align-items: flex-end;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      flex: 1;
+    }
+
+    .filter-item {
+      flex: 1;
+      min-width: 180px;
+    }
+    .filter-label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: var(--dark-text);
+    }
+    .filter-select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      font-size: 0.9rem;
+      height: 42px;
+    }
+
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    .btn-secondary {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+    .btn-outline {
+      background-color: white;
+      border: 1px solid var(--primary-color);
+      color: var(--primary-color);
+    }
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+      background-color: var(--primary-dark);
+      color: white;
+    }
+    .btn-outline:hover {
+      border-color: var(--primary-dark);
+    }
+
+    /* Kafelki podsumowania */
+    .summary-cards {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      padding: 15px;
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      color: white;
+    }
+    .card-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 5px;
+    }
+    .card-label {
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+
+    /* Sekcja mapy */
+    .map-container {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: var(--card-shadow);
+      padding: 0;
+      flex-grow: 1;
+      position: relative;
+      height: 700px;
+    }
+    #map {
+      height: 100%;
+      width: 100%;
+      border-radius: 8px;
+    }
+
+    /* Popup analizy */
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .popup-overlay.active {
+      display: flex;
+    }
+    .popup-container {
+      background-color: white;
+      width: 80%;
+      height: 80%;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      padding: 25px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .popup-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+    .close-popup {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #64748b;
+    }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      flex-grow: 1;
+    }
+    .analytics-card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      min-height: 300px;
+    }
+    .analytics-card-header {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--dark-text);
+    }
+    .chart-placeholder {
+      flex-grow: 1;
+      background-color: #edf2f7;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #718096;
+      min-height: 250px;
+    }
+
+    /* Popup 'Dodaj obiekt' */
+    .add-popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000; /* Powyżej popupu analizy */
+    }
+    .add-popup-overlay.active {
+      display: flex;
+    }
+    .add-popup-container {
+      background-color: white;
+      width: 400px;
+      max-width: 90%;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .add-popup-header {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: var(--primary-color);
+    }
+    .add-popup-row label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+      color: var(--dark-text);
+    }
+    .add-popup-row select,
+    .add-popup-row input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      font-size: 0.9rem;
+    }
+    .add-popup-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    /* Responsywność */
+    @media (max-width: 768px) {
+      .summary-cards {
+        flex-direction: column;
+      }
+      .analytics-grid {
+        grid-template-columns: 1fr;
+      }
+      .map-container {
+        height: 500px;
+      }
+      .header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 10px;
+      }
+    }
+  </style>
+
+  <!-- Font Awesome (ikony) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <!-- Leaflet.markercluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+</head>
+
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <img src="https://cobouw.pl/wp-content/uploads/cropped-logo_cobouw.png" alt="CoBouw Logo"/>
+        </div>
+        <div class="header-title">
+          Mapa obiektów
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Panel kontrolny (filtry i przyciski) -->
+    <section class="controls-panel">
+      <div class="filters-row">
+        <div class="filters">
+          <!-- Filtr województwo -->
+          <div class="filter-item">
+            <label class="filter-label" for="filter-region">Województwo</label>
+            <select class="filter-select" id="filter-region">
+              <option value="">Wszystkie</option>
+              <!-- Dynamicznie wypełniane w JS -->
+            </select>
+          </div>
+          <!-- Filtr branża -->
+          <div class="filter-item">
+            <label class="filter-label" for="filter-industry">Branża</label>
+            <select class="filter-select" id="filter-industry">
+              <option value="">Wszystkie</option>
+              <!-- Dynamicznie wypełniane w JS -->
+            </select>
+          </div>
+          <!-- Filtr rodzaj obiektu -->
+          <div class="filter-item">
+            <label class="filter-label" for="filter-object-type">Rodzaj obiektu</label>
+            <select class="filter-select" id="filter-object-type">
+              <option value="">Wszystkie</option>
+              <!-- Dynamicznie wypełniane w JS -->
+            </select>
+          </div>
+          <!-- Filtr typ kontraktu -->
+          <div class="filter-item">
+            <label class="filter-label" for="filter-contract-type">Typ kontraktu</label>
+            <select class="filter-select" id="filter-contract-type">
+              <option value="">Wszystkie</option>
+              <!-- Dynamicznie wypełniane w JS -->
+            </select>
+          </div>
+        </div>
+        <!-- Przycisk resetowania filtrów -->
+        <button class="btn btn-outline" id="btn-reset-filters">
+          <i class="fas fa-undo"></i> Resetuj filtry
+        </button>
+      </div>
+
+      <div class="buttons">
+        <!-- Dodaj obiekt -->
+        <button class="btn btn-primary" id="btn-open-add">
+          <i class="fas fa-plus"></i> Dodaj obiekt
+        </button>
+        <!-- Eksport CSV -->
+        <button class="btn btn-secondary" id="btn-export-csv">
+          <i class="fas fa-file-export"></i> Eksportuj do CSV
+        </button>
+        <!-- Analiza -->
+        <button class="btn btn-primary" id="open-analysis">
+          <i class="fas fa-chart-bar"></i> Analiza
+        </button>
+      </div>
+    </section>
+
+    <!-- Kafelki podsumowania (liczba obiektów + powierzchnia) -->
+    <section class="summary-cards">
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-building"></i>
+        </div>
+        <div class="card-value" id="total-count">0</div>
+        <div class="card-label">Łączna liczba obiektów</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">
+          <i class="fas fa-ruler-combined"></i>
+        </div>
+        <div class="card-value" id="total-area">0 m²</div>
+        <div class="card-label">Łączna powierzchnia zabudowy</div>
+      </div>
+    </section>
+
+    <!-- Mapa -->
+    <section class="map-container">
+      <div id="map"></div>
+    </section>
+
+  </main>
+
+  <!-- Popup analizy -->
+  <div class="popup-overlay" id="analysis-popup">
+    <div class="popup-container">
+      <div class="popup-header">
+        <h2 class="popup-title">Analiza danych obiektów przemysłowych</h2>
+        <button class="close-popup" id="close-analysis">&times;</button>
+      </div>
+      <div class="analytics-grid">
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            Udział rodzajów obiektów
+          </div>
+          <div class="chart-placeholder">
+            <div>
+              <i class="fas fa-chart-pie" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
+              <p>Wykres udziału obiektów magazynowych we wszystkich obiektach</p>
+            </div>
+          </div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            Powierzchnia według branż
+          </div>
+          <div class="chart-placeholder">
+            <div>
+              <i class="fas fa-chart-bar" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
+              <p>Wykres powierzchni obiektów według branż</p>
+            </div>
+          </div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            Ilość obiektów według województw
+          </div>
+          <div class="chart-placeholder">
+            <div>
+              <i class="fas fa-map" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
+              <p>Wykres ilości obiektów według lokalizacji</p>
+            </div>
+          </div>
+        </div>
+        <div class="analytics-card">
+          <div class="analytics-card-header">
+            Trend realizacji w czasie
+          </div>
+          <div class="chart-placeholder">
+            <div>
+              <i class="fas fa-chart-line" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
+              <p>Wykres trendu realizacji obiektów w czasie</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Dodaj obiekt -->
+  <div class="add-popup-overlay" id="add-popup">
+    <div class="add-popup-container">
+      <div class="add-popup-header">Dodaj obiekt</div>
+
+      <div class="add-popup-row">
+        <label for="input-investor">Nazwa inwestycji <span style="color:red">*</span></label>
+        <input type="text" id="input-investor" required />
+      </div>
+      <div class="add-popup-row">
+        <label for="input-city">Miejscowość <span style="color:red">*</span></label>
+        <input type="text" id="input-city" required />
+      </div>
+      <div class="add-popup-row">
+        <label for="input-region">Województwo <span style="color:red">*</span></label>
+        <select id="input-region">
+          <!-- wypełnione dynamicznie -->
+        </select>
+      </div>
+      <div class="add-popup-row">
+        <label for="input-area">Powierzchnia (m²)</label>
+        <input type="number" step="1" id="input-area" />
+      </div>
+      <div class="add-popup-row">
+        <label for="input-industry">Branża</label>
+        <select id="input-industry">
+          <!-- wypełnione dynamicznie -->
+        </select>
+      </div>
+      <div class="add-popup-row">
+        <label for="input-object-type">Rodzaj obiektu</label>
+        <select id="input-object-type">
+          <!-- wypełnione dynamicznie -->
+        </select>
+      </div>
+      <div class="add-popup-row">
+        <label for="input-contract-type">Typ kontraktu</label>
+        <select id="input-contract-type">
+          <!-- wypełnione dynamicznie -->
+        </select>
+      </div>
+      <div class="add-popup-row">
+        <label for="input-link">Link do materiałów</label>
+        <input type="text" id="input-link" />
+      </div>
+
+      <div class="add-popup-actions">
+        <button class="btn btn-outline" id="btn-cancel-add">Anuluj</button>
+        <button class="btn btn-primary" id="btn-save-add">Zapisz</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zewnętrzne biblioteki JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+  <!-- Główny skrypt -->
+  <script>
+    /***************************************
+     *   USTAWIENIA SUPABASE I INICJALIZACJA
+     ***************************************/
+    const supabaseUrl = 'https://rrxovvkplpjibgtozppf.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyeG92dmtwbHBqaWJndG96cHBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NjMxNDYsImV4cCI6MjA1NzQzOTE0Nn0.EooKE2NLW292MzXXKeyy--7HhIhl4TJ4CXknzB6GXyk';
+    const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+    /***************************************
+     *      INICJALIZACJA MAPY LEAFLET
+     ***************************************/
+    var map = L.map('map').setView([52.237049, 21.017532], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    var markerClusterGroup = L.markerClusterGroup({ maxClusterRadius: 30 });
+    map.addLayer(markerClusterGroup);
+
+    // Przechowujemy pobrane dane w pamięci, aby nie fetchować wielokrotnie
+    let allObjects = [];
+
+    /***************************************
+     *            FILTROWANIE
+     ***************************************/
+    function filterMarkers() {
+      const selectedRegion = document.getElementById('filter-region').value;
+      const selectedIndustry = document.getElementById('filter-industry').value;
+      const selectedObjectType = document.getElementById('filter-object-type').value;
+      const selectedContractType = document.getElementById('filter-contract-type').value;
+
+      markerClusterGroup.clearLayers();
+      let filtered = allObjects.filter(obj => {
+        let matchRegion = !selectedRegion || obj.region === selectedRegion;
+        let matchIndustry = !selectedIndustry || obj.industry === selectedIndustry;
+        let matchObjectType = !selectedObjectType || obj.object_type === selectedObjectType;
+        let matchContractType = !selectedContractType || obj.contract_type === selectedContractType;
+        return matchRegion && matchIndustry && matchObjectType && matchContractType;
+      });
+      filtered.forEach(obj => addOrUpdateMarker(obj));
+      updateSummary(filtered);
+    }
+
+    document.getElementById('filter-region').addEventListener('change', filterMarkers);
+    document.getElementById('filter-industry').addEventListener('change', filterMarkers);
+    document.getElementById('filter-object-type').addEventListener('change', filterMarkers);
+    document.getElementById('filter-contract-type').addEventListener('change', filterMarkers);
+
+    // Reset filtrów
+    document.getElementById('btn-reset-filters').addEventListener('click', () => {
+      document.getElementById('filter-region').value = "";
+      document.getElementById('filter-industry').value = "";
+      document.getElementById('filter-object-type').value = "";
+      document.getElementById('filter-contract-type').value = "";
+      filterMarkers();
+    });
+
+    /***************************************
+     *     FUNKCJE POMOCNICZE: Markery, popup
+     ***************************************/
+    function generatePopupContent(obj) {
+      let investorHTML = obj.investor || "Brak nazwy";
+      if (obj.link_url && obj.link_url.trim() !== "") {
+        let safeUrl = obj.link_url.trim();
+        if (!safeUrl.startsWith("http://") && !safeUrl.startsWith("https://")) {
+          safeUrl = "https://" + safeUrl;
+        }
+        investorHTML = `<a href="${safeUrl}" target="_blank">${obj.investor}</a>`;
+      }
+      return `<b>${investorHTML}</b><br>
+              ${obj.city || ""}<br>
+              Powierzchnia: ${obj.area || 0} m²<br>
+              Branża: ${obj.industry || ""}<br>
+              Rodzaj: ${obj.object_type || ""}<br>
+              Kontrakt: ${obj.contract_type || ""}`;
+    }
+
+    function addOrUpdateMarker(obj) {
+      let marker = L.marker([obj.lat, obj.lon]);
+      marker.bindPopup(generatePopupContent(obj));
+      markerClusterGroup.addLayer(marker);
+    }
+
+    /***************************************
+     *     PODSUMOWANIE (LICZBA / POWIERZCHNIA)
+     ***************************************/
+    function updateSummary(dataArray) {
+      let count = dataArray.length;
+      let totalArea = dataArray.reduce((acc, obj) => acc + (Number(obj.area) || 0), 0);
+      document.getElementById('total-count').innerText = count;
+      // Formatowanie powierzchni
+      let formattedArea = totalArea.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+      document.getElementById('total-area').innerText = formattedArea + " m²";
+    }
+
+    /***************************************
+     *     POBIERANIE DANYCH & WYPEŁNIANIE FILTRÓW
+     ***************************************/
+    async function fetchObjects() {
+      try {
+        const { data, error } = await supabaseClient
+          .from('objects')
+          .select('*');
+        if (error) throw error;
+        allObjects = data || [];
+
+        // Czyścimy i dodajemy markery
+        markerClusterGroup.clearLayers();
+        allObjects.forEach(obj => addOrUpdateMarker(obj));
+        updateSummary(allObjects);
+
+        // Dynamiczne wypełnianie filtrów
+        populateFilters(allObjects);
+      } catch (err) {
+        console.error("Błąd pobierania obiektów:", err);
+      }
+    }
+
+    // Wyciąga unikalne wartości z tablicy obiektów
+    function getUniqueValues(arr, key) {
+      const set = new Set();
+      arr.forEach(item => {
+        if (item[key] && item[key].trim() !== "") {
+          set.add(item[key].trim());
+        }
+      });
+      return Array.from(set).sort();
+    }
+
+    function populateFilters(data) {
+      // region, industry, object_type, contract_type
+      const regions = getUniqueValues(data, 'region');
+      const industries = getUniqueValues(data, 'industry');
+      const objTypes = getUniqueValues(data, 'object_type');
+      const contractTypes = getUniqueValues(data, 'contract_type');
+
+      fillSelect('filter-region', regions);
+      fillSelect('filter-industry', industries);
+      fillSelect('filter-object-type', objTypes);
+      fillSelect('filter-contract-type', contractTypes);
+    }
+
+    function fillSelect(selectId, values) {
+      const sel = document.getElementById(selectId);
+      const currentVal = sel.value;
+      // Zachowaj pierwszy <option>="Wszystkie" i usuń resztę
+      while (sel.options.length > 1) {
+        sel.remove(1);
+      }
+      values.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        sel.appendChild(opt);
+      });
+      // Przywracamy poprzednią wartość selecta (jeśli istniała)
+      sel.value = currentVal || "";
+    }
+
+    /***************************************
+     *     URUCHOMIENIE
+     ***************************************/
+    fetchObjects();
+
+    /***************************************
+     *     POPUP 'DODAJ OBIEKT'
+     ***************************************/
+    const btnOpenAdd = document.getElementById('btn-open-add');
+    const addPopup = document.getElementById('add-popup');
+    const btnCancelAdd = document.getElementById('btn-cancel-add');
+    const btnSaveAdd = document.getElementById('btn-save-add');
+
+    // Otwórz popup
+    btnOpenAdd.addEventListener('click', () => {
+      // Zanim otworzymy, wypełnimy dropdowny (region, industry, object_type, contract_type) tymi samymi wartościami co w filtrach
+      fillSelect('input-region', getUniqueValues(allObjects, 'region'));
+      fillSelect('input-industry', getUniqueValues(allObjects, 'industry'));
+      fillSelect('input-object-type', getUniqueValues(allObjects, 'object_type'));
+      fillSelect('input-contract-type', getUniqueValues(allObjects, 'contract_type'));
+
+      addPopup.classList.add('active');
+    });
+
+    // Anuluj
+    btnCancelAdd.addEventListener('click', () => {
+      addPopup.classList.remove('active');
+      clearAddPopupFields();
+    });
+
+    // Zapisz
+    btnSaveAdd.addEventListener('click', async () => {
+      try {
+        const investor = document.getElementById('input-investor').value.trim();
+        const city = document.getElementById('input-city').value.trim();
+        const region = document.getElementById('input-region').value.trim();
+        const area = document.getElementById('input-area').value.trim();
+        const industry = document.getElementById('input-industry').value.trim();
+        const object_type = document.getElementById('input-object-type').value.trim();
+        const contract_type = document.getElementById('input-contract-type').value.trim();
+        const link_url = document.getElementById('input-link').value.trim();
+
+        if (!investor) {
+          alert("Nazwa inwestycji jest wymagana!");
+          return;
+        }
+        if (!city) {
+          alert("Miejscowość jest wymagana!");
+          return;
+        }
+        if (!region) {
+          alert("Województwo jest wymagane!");
+          return;
+        }
+
+        // Geokodowanie: city + region + Poland, by być bardziej precyzyjnym
+        const query = encodeURIComponent(`${city}, ${region}, Poland`);
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}`;
+        const resp = await fetch(url);
+        const geoData = await resp.json();
+        if (!geoData || geoData.length === 0) {
+          alert("Nie udało się ustalić współrzędnych dla podanej lokalizacji!");
+          return;
+        }
+        const lat = geoData[0].lat;
+        const lon = geoData[0].lon;
+
+        // Zapis do Supabase
+        const { data, error } = await supabaseClient
+          .from('objects')
+          .insert([
+            {
+              investor,
+              city,
+              region,
+              area: area ? parseFloat(area) : null,
+              industry: industry || null,
+              object_type: object_type || null,
+              contract_type: contract_type || null,
+              link_url: link_url || null,
+              lat: parseFloat(lat),
+              lon: parseFloat(lon)
+            }
+          ]);
+        if (error) {
+          console.error(error);
+          alert("Błąd podczas zapisywania do bazy!");
+          return;
+        }
+        // Po udanym zapisie, odśwież listę obiektów
+        await fetchObjects();
+        // Zamknij popup
+        addPopup.classList.remove('active');
+        clearAddPopupFields();
+      } catch (err) {
+        console.error(err);
+        alert("Wystąpił błąd podczas dodawania obiektu!");
+      }
+    });
+
+    function clearAddPopupFields() {
+      document.getElementById('input-investor').value = "";
+      document.getElementById('input-city').value = "";
+      document.getElementById('input-region').value = "";
+      document.getElementById('input-area').value = "";
+      document.getElementById('input-industry').value = "";
+      document.getElementById('input-object-type').value = "";
+      document.getElementById('input-contract-type').value = "";
+      document.getElementById('input-link').value = "";
+    }
+
+    /***************************************
+     *     POPUP ANALIZY
+     ***************************************/
+    document.getElementById('open-analysis').addEventListener('click', () => {
+      document.getElementById('analysis-popup').classList.add('active');
+    });
+    document.getElementById('close-analysis').addEventListener('click', () => {
+      document.getElementById('analysis-popup').classList.remove('active');
+    });
+
+    /***************************************
+     *     EKSPORT CSV
+     ***************************************/
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      // Pobiera obiekty aktualnie widoczne (przefiltrowane)
+      const selectedRegion = document.getElementById('filter-region').value;
+      const selectedIndustry = document.getElementById('filter-industry').value;
+      const selectedObjectType = document.getElementById('filter-object-type').value;
+      const selectedContractType = document.getElementById('filter-contract-type').value;
+
+      let exportData = allObjects.filter(obj => {
+        let matchRegion = !selectedRegion || obj.region === selectedRegion;
+        let matchIndustry = !selectedIndustry || obj.industry === selectedIndustry;
+        let matchObjectType = !selectedObjectType || obj.object_type === selectedObjectType;
+        let matchContractType = !selectedContractType || obj.contract_type === selectedContractType;
+        return matchRegion && matchIndustry && matchObjectType && matchContractType;
+      });
+
+      if (exportData.length === 0) {
+        alert("Brak danych do eksportu.");
+        return;
+      }
+
+      let headers = [
+        "Investor", "City", "Region", "Area", "Industry",
+        "Object_type", "Contract_type", "Link_url", "Lat", "Lon"
+      ];
+      let csvRows = [];
+      csvRows.push(headers.join(","));
+      exportData.forEach(obj => {
+        let row = [
+          `"${obj.investor || ""}"`,
+          `"${obj.city || ""}"`,
+          `"${obj.region || ""}"`,
+          `${obj.area || 0}`,
+          `"${obj.industry || ""}"`,
+          `"${obj.object_type || ""}"`,
+          `"${obj.contract_type || ""}"`,
+          `"${obj.link_url || ""}"`,
+          `${obj.lat || 0}`,
+          `${obj.lon || 0}`
+        ];
+        csvRows.push(row.join(","));
+      });
+      let csvString = csvRows.join("\n");
+      let blob = new Blob([csvString], { type: "text/csv" });
+      let url = window.URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.setAttribute("hidden", "");
+      a.setAttribute("href", url);
+      a.setAttribute("download", "eksport.csv");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }); 
+  </script>  
+</body>
+</html>
