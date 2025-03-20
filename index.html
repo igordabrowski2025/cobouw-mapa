@@ -1084,19 +1084,19 @@
     function initAnalysisCharts() {
       let placeholder1 = document.querySelector('.analytics-card:nth-child(1) .chart-placeholder');
       if (placeholder1) {
-        placeholder1.innerHTML = '<canvas id="chart-area-range"></canvas>';
+        placeholder1.innerHTML = '<canvas id="chart-area-range" width="300" height="200"></canvas>';
       }
       let placeholder2 = document.querySelector('.analytics-card:nth-child(2) .chart-placeholder');
       if (placeholder2) {
-        placeholder2.innerHTML = '<canvas id="chart-top-regions"></canvas>';
+        placeholder2.innerHTML = '<canvas id="chart-top-regions" width="300" height="200"></canvas>';
       }
       let placeholder3 = document.querySelector('.analytics-card:nth-child(3) .chart-placeholder');
       if (placeholder3) {
-        placeholder3.innerHTML = '<canvas id="chart-top-industries"></canvas>';
+        placeholder3.innerHTML = '<canvas id="chart-top-industries" width="300" height="200"></canvas>';
       }
       let placeholder4 = document.querySelector('.analytics-card:nth-child(4) .chart-placeholder');
       if (placeholder4) {
-        placeholder4.innerHTML = '<canvas id="chart-contract-types"></canvas>';
+        placeholder4.innerHTML = '<canvas id="chart-contract-types" width="300" height="200"></canvas>';
       }
     }
 
@@ -1245,7 +1245,7 @@
               title: {
                 display: true,
                 text: (contractCounts["zaprojektuj i wybuduj"] === 0 && contractCounts["generalny wykonawca"] === 0) ? "Brak danych" : ""
-              } 
+              }
             }
           }
         });
@@ -1265,3 +1265,4 @@
   </script>
 </body>
 </html>
+
