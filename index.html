@@ -62,7 +62,7 @@
       gap: 15px;
     }
     .logo img {
-      height: 40px; /* Zmniejszone o 20% w stosunku do pierwotnej wartości 50px */
+      height: 40px;
     }
 
     .header-title {
@@ -314,7 +314,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 2000; /* Powyżej popupu analizy */
+      z-index: 2000;
     }
     .add-popup-overlay.active {
       display: flex;
@@ -425,6 +425,9 @@
   <!-- Leaflet.markercluster CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css"/>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -537,46 +540,34 @@
       <div class="analytics-grid">
         <div class="analytics-card">
           <div class="analytics-card-header">
-            Udział rodzajów obiektów
+            Udział obiektów według zakresów powierzchni
           </div>
           <div class="chart-placeholder">
-            <div>
-              <i class="fas fa-chart-pie" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
-              <p>Wykres udziału obiektów magazynowych we wszystkich obiektach</p>
-            </div>
+            <!-- Canvas zostanie dodany dynamicznie -->
           </div>
         </div>
         <div class="analytics-card">
           <div class="analytics-card-header">
-            Powierzchnia według branż
+            Top 5 województw
           </div>
           <div class="chart-placeholder">
-            <div>
-              <i class="fas fa-chart-bar" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
-              <p>Wykres powierzchni obiektów według branż</p>
-            </div>
+            <!-- Canvas zostanie dodany dynamicznie -->
           </div>
         </div>
         <div class="analytics-card">
           <div class="analytics-card-header">
-            Ilość obiektów według województw
+            Top 5 branż w wybranym województwie
           </div>
           <div class="chart-placeholder">
-            <div>
-              <i class="fas fa-map" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
-              <p>Wykres ilości obiektów według lokalizacji</p>
-            </div>
+            <!-- Canvas zostanie dodany dynamicznie -->
           </div>
         </div>
         <div class="analytics-card">
           <div class="analytics-card-header">
-            Trend realizacji w czasie
+            Podział procentowy kontraktów
           </div>
           <div class="chart-placeholder">
-            <div>
-              <i class="fas fa-chart-line" style="font-size: 36px; margin-bottom: 15px; color: #ff5800;"></i>
-              <p>Wykres trendu realizacji obiektów w czasie</p>
-            </div>
+            <!-- Canvas zostanie dodany dynamicznie -->
           </div>
         </div>
       </div>
@@ -663,8 +654,8 @@
 
     // Globalne zmienne do obsługi edycji/usuwania
     let allObjects = [];
-    let editingObject = null;   // Przechowuje aktualnie edytowany obiekt
-    let deletingObject = null;  // Przechowuje aktualnie usuwany obiekt
+    let editingObject = null;
+    let deletingObject = null;
 
     /***************************************
      *      INICJALIZACJA MAPY LEAFLET
@@ -725,14 +716,13 @@
         }
         investorHTML = `<a href="${safeUrl}" target="_blank">${obj.investor}</a>`;
       }
-      // Dodajemy przyciski "Edytuj" i "Usuń" w popupie
       return `
         <b>${investorHTML}</b><br>
         ${obj.city || ""}<br>
         Powierzchnia: ${obj.area || 0} m²<br>
         Branża: ${obj.industry || ""}<br>
         Rodzaj: ${obj.object_type || ""}<br>
-        Kontrakt: ${obj.contract_type || ""}
+        Kontrakt: ${obj.contract_type || ""}<br>
         <div style="margin-top: 10px; display: flex; gap: 10px;">
           <button class="btn btn-primary" onclick="editObject(${obj.id})">Edytuj</button>
           <button class="btn btn-outline" onclick="confirmDelete(${obj.id})">Usuń</button>
@@ -752,7 +742,6 @@
       let count = dataArray.length;
       let totalArea = dataArray.reduce((acc, obj) => acc + (Number(obj.area) || 0), 0);
       document.getElementById('total-count').innerText = count;
-      // Formatowanie powierzchni
       let formattedArea = totalArea.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
       document.getElementById('total-area').innerText = formattedArea + " m²";
     }
@@ -767,20 +756,15 @@
           .select('*');
         if (error) throw error;
         allObjects = data || [];
-
-        // Czyścimy i dodajemy markery
         markerClusterGroup.clearLayers();
         allObjects.forEach(obj => addOrUpdateMarker(obj));
         updateSummary(allObjects);
-
-        // Dynamiczne wypełnianie filtrów
         populateFilters(allObjects);
       } catch (err) {
         console.error("Błąd pobierania obiektów:", err);
       }
     }
 
-    // Wyciąga unikalne wartości z tablicy obiektów
     function getUniqueValues(arr, key) {
       const set = new Set();
       arr.forEach(item => {
@@ -792,7 +776,6 @@
     }
 
     function populateFilters(data) {
-      // region, industry, object_type, contract_type
       const regions = getUniqueValues(data, 'region');
       const industries = getUniqueValues(data, 'industry');
       const objTypes = getUniqueValues(data, 'object_type');
@@ -807,7 +790,6 @@
     function fillSelect(selectId, values) {
       const sel = document.getElementById(selectId);
       const currentVal = sel.value;
-      // Zachowaj pierwszy <option>="Wszystkie" i usuń resztę
       while (sel.options.length > 1) {
         sel.remove(1);
       }
@@ -817,7 +799,6 @@
         opt.textContent = val;
         sel.appendChild(opt);
       });
-      // Przywracamy poprzednią wartość selecta (jeśli istniała)
       sel.value = currentVal || "";
     }
 
@@ -835,30 +816,24 @@
     const btnSaveAdd = document.getElementById('btn-save-add');
     const popupAddTitle = document.getElementById('popup-add-title');
 
-    // Otwórz popup w trybie DODAWANIA
     btnOpenAdd.addEventListener('click', () => {
       editingObject = null;
-      // Wypełnij dropdowny
       fillSelect('input-region', getUniqueValues(allObjects, 'region'));
       fillSelect('input-industry', getUniqueValues(allObjects, 'industry'));
       fillSelect('input-object-type', getUniqueValues(allObjects, 'object_type'));
       fillSelect('input-contract-type', getUniqueValues(allObjects, 'contract_type'));
-
       popupAddTitle.innerText = "Dodaj obiekt";
       clearAddPopupFields();
       addPopup.classList.add('active');
     });
 
-    // Funkcja do wypełnienia popupu w trybie EDYTOWANIA
     window.editObject = (id) => {
       editingObject = allObjects.find(o => o.id === id);
       if (!editingObject) return;
-
       fillSelect('input-region', getUniqueValues(allObjects, 'region'));
       fillSelect('input-industry', getUniqueValues(allObjects, 'industry'));
       fillSelect('input-object-type', getUniqueValues(allObjects, 'object_type'));
       fillSelect('input-contract-type', getUniqueValues(allObjects, 'contract_type'));
-
       popupAddTitle.innerText = "Edytuj obiekt";
       document.getElementById('input-investor').value = editingObject.investor || "";
       document.getElementById('input-city').value = editingObject.city || "";
@@ -868,18 +843,15 @@
       document.getElementById('input-object-type').value = editingObject.object_type || "";
       document.getElementById('input-contract-type').value = editingObject.contract_type || "";
       document.getElementById('input-link').value = editingObject.link_url || "";
-
       addPopup.classList.add('active');
     };
 
-    // Anuluj
     btnCancelAdd.addEventListener('click', () => {
       addPopup.classList.remove('active');
       editingObject = null;
       clearAddPopupFields();
     });
 
-    // Zapisz (dodawanie lub edycja)
     btnSaveAdd.addEventListener('click', async () => {
       try {
         const investor = document.getElementById('input-investor').value.trim();
@@ -904,12 +876,10 @@
           return;
         }
 
-        // Czy geokodować? Tylko jeśli zmieniono miasto lub region (w trybie edycji)
         let doGeocode = true;
         let lat, lon;
 
         if (editingObject) {
-          // Tryb edycji
           if (
             city === editingObject.city &&
             region === editingObject.region
@@ -921,7 +891,6 @@
         }
 
         if (doGeocode) {
-          // city + region + Poland
           const query = encodeURIComponent(`${city}, ${region}, Poland`);
           const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}`;
           const resp = await fetch(url);
@@ -935,7 +904,6 @@
         }
 
         if (editingObject) {
-          // Aktualizacja istniejącego obiektu
           const { error } = await supabaseClient
             .from('objects')
             .update({
@@ -959,7 +927,6 @@
           }
 
         } else {
-          // Dodawanie nowego obiektu
           const { error } = await supabaseClient
             .from('objects')
             .insert([
@@ -983,9 +950,7 @@
           }
         }
 
-        // Po udanym zapisie, odśwież listę obiektów
         await fetchObjects();
-        // Zamknij popup
         addPopup.classList.remove('active');
         editingObject = null;
         clearAddPopupFields();
@@ -1060,7 +1025,6 @@
      *     EKSPORT CSV
      ***************************************/
     document.getElementById('btn-export-csv').addEventListener('click', () => {
-      // Pobiera obiekty aktualnie widoczne (przefiltrowane)
       const selectedRegion = document.getElementById('filter-region').value;
       const selectedIndustry = document.getElementById('filter-industry').value;
       const selectedObjectType = document.getElementById('filter-object-type').value;
@@ -1110,6 +1074,193 @@
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
+    });
+  </script>
+
+  <!-- Nowy skrypt obsługujący wykresy w popupie 'Analiza' -->
+  <script>
+    let chartAreaRange, chartTopRegions, chartTopIndustries, chartContractTypes;
+
+    function initAnalysisCharts() {
+      let placeholder1 = document.querySelector('.analytics-card:nth-child(1) .chart-placeholder');
+      if (placeholder1) {
+        placeholder1.innerHTML = '<canvas id="chart-area-range"></canvas>';
+      }
+      let placeholder2 = document.querySelector('.analytics-card:nth-child(2) .chart-placeholder');
+      if (placeholder2) {
+        placeholder2.innerHTML = '<canvas id="chart-top-regions"></canvas>';
+      }
+      let placeholder3 = document.querySelector('.analytics-card:nth-child(3) .chart-placeholder');
+      if (placeholder3) {
+        placeholder3.innerHTML = '<canvas id="chart-top-industries"></canvas>';
+      }
+      let placeholder4 = document.querySelector('.analytics-card:nth-child(4) .chart-placeholder');
+      if (placeholder4) {
+        placeholder4.innerHTML = '<canvas id="chart-contract-types"></canvas>';
+      }
+    }
+
+    function updateAnalysisCharts() {
+      // 1. Wykres: udział obiektów według zakresów powierzchni
+      const ranges = [
+        { label: "0 - 3000", min: 0, max: 3000 },
+        { label: "3001 - 5000", min: 3001, max: 5000 },
+        { label: "5001 - 8000", min: 5001, max: 8000 },
+        { label: "8001 - 12000", min: 8001, max: 12000 },
+        { label: "powyżej 12000", min: 12001, max: Infinity }
+      ];
+      const counts = ranges.map(range => {
+        return allObjects.filter(obj => obj.area && parseFloat(obj.area) >= range.min && parseFloat(obj.area) <= range.max).length;
+      });
+      if (chartAreaRange) {
+        chartAreaRange.data.datasets[0].data = counts;
+        chartAreaRange.update();
+      } else {
+        const ctx = document.getElementById('chart-area-range').getContext('2d');
+        chartAreaRange = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ranges.map(r => r.label),
+            datasets: [{
+              data: counts,
+              backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' }
+            }
+          }
+        });
+      }
+
+      // 2. Top 5 województw
+      const regionCounts = {};
+      allObjects.forEach(obj => {
+        if (obj.region && obj.region.trim() !== "") {
+          regionCounts[obj.region] = (regionCounts[obj.region] || 0) + 1;
+        }
+      });
+      const sortedRegions = Object.entries(regionCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const regionLabels = sortedRegions.map(entry => entry[0]);
+      const regionData = sortedRegions.map(entry => entry[1]);
+      if (chartTopRegions) {
+        chartTopRegions.data.labels = regionLabels;
+        chartTopRegions.data.datasets[0].data = regionData;
+        chartTopRegions.update();
+      } else {
+        const ctx = document.getElementById('chart-top-regions').getContext('2d');
+        chartTopRegions = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: regionLabels,
+            datasets: [{
+              label: 'Liczba obiektów',
+              data: regionData,
+              backgroundColor: '#36A2EB'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // 3. Top 5 branż (dla wybranego województwa, jeśli zaznaczone)
+      const selectedRegion = document.getElementById('filter-region').value;
+      let filteredObjects = allObjects;
+      if (selectedRegion) {
+        filteredObjects = allObjects.filter(obj => obj.region === selectedRegion);
+      }
+      const industryCounts = {};
+      filteredObjects.forEach(obj => {
+        if (obj.industry && obj.industry.trim() !== "") {
+          industryCounts[obj.industry] = (industryCounts[obj.industry] || 0) + 1;
+        }
+      });
+      const sortedIndustries = Object.entries(industryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const industryLabels = sortedIndustries.map(entry => entry[0]);
+      const industryData = sortedIndustries.map(entry => entry[1]);
+      if (chartTopIndustries) {
+        chartTopIndustries.data.labels = industryLabels;
+        chartTopIndustries.data.datasets[0].data = industryData;
+        chartTopIndustries.update();
+      } else {
+        const ctx = document.getElementById('chart-top-industries').getContext('2d');
+        chartTopIndustries = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: industryLabels,
+            datasets: [{
+              label: 'Liczba obiektów',
+              data: industryData,
+              backgroundColor: '#FFCE56'
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      // 4. Podział procentowy kontraktów
+      const contractCounts = { "zaprojektuj i wybuduj": 0, "generalny wykonawca": 0 };
+      allObjects.forEach(obj => {
+        if (obj.contract_type) {
+          const ct = obj.contract_type.toLowerCase();
+          if (ct.includes("zaprojektuj")) {
+            contractCounts["zaprojektuj i wybuduj"]++;
+          } else if (ct.includes("generalny")) {
+            contractCounts["generalny wykonawca"]++;
+          }
+        }
+      });
+      let contractData;
+      if (contractCounts["zaprojektuj i wybuduj"] === 0 && contractCounts["generalny wykonawca"] === 0) {
+        contractData = [1, 1]; // dane przykładowe
+      } else {
+        contractData = [contractCounts["zaprojektuj i wybuduj"], contractCounts["generalny wykonawca"]];
+      }
+      if (chartContractTypes) {
+        chartContractTypes.data.datasets[0].data = contractData;
+        chartContractTypes.update();
+      } else {
+        const ctx = document.getElementById('chart-contract-types').getContext('2d');
+        chartContractTypes = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ["zaprojektuj i wybuduj", "generalny wykonawca"],
+            datasets: [{
+              data: contractData,
+              backgroundColor: ['#4BC0C0', '#9966FF']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'bottom' },
+              title: {
+                display: true,
+                text: (contractCounts["zaprojektuj i wybuduj"] === 0 && contractCounts["generalny wykonawca"] === 0) ? "Brak danych" : ""
+              } 
+            }
+          }
+        });
+      }
+    }
+
+    // Po otwarciu popupu 'Analiza' inicjujemy i aktualizujemy wykresy
+    document.getElementById('open-analysis').addEventListener('click', () => {
+      initAnalysisCharts();
+      updateAnalysisCharts();
+    });
+
+    // Aktualizacja wykresów przy zmianie filtra województwa (dla top 5 branż)
+    document.getElementById('filter-region').addEventListener('change', () => {
+      updateAnalysisCharts();
     });
   </script>
 </body>
